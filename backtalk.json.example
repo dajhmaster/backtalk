@@ -1,4 +1,5 @@
 {
+  "brain_provider": "claude",
   "agent_dir": "~",
   "name": "Assistant",
   "ptt_key": "home",

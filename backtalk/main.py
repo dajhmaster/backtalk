@@ -15,10 +15,10 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""backtalk — talk to your Claude Code agent out loud.
+"""backtalk — talk to your coding agent out loud.
 
 Flow: hold the key and speak -> local transcription -> your agent's warm
-Claude session streams the reply -> sentences go to the mouth the moment
+session streams the reply -> sentences go to the mouth the moment
 they complete (~1-2s to first audio on warm turns). The greeting plays
 over a hidden warmup query so the first real turn is already hot.
 
@@ -62,7 +62,8 @@ import threading
 import time
 
 from backtalk import signals
-from backtalk.brain import WarmBrain
+from backtalk.brain import WarmBrain as ClaudeBrain
+from backtalk.copilot_brain import CopilotBrain
 from backtalk.config import CFG
 from backtalk.ears import (Ears, explain_audio_failure, record_held,
                            warm as warm_ears)
@@ -72,6 +73,14 @@ from backtalk.vlog import log
 
 NAME = CFG["name"]
 QUIT_PHRASES = CFG["quit_phrases"]
+
+
+def _brain_provider():
+    provider = CFG.get("brain_provider", "claude")
+    if provider not in ("claude", "copilot"):
+        raise ValueError(f"Unknown brain_provider {provider!r}")
+    return provider
+
 
 # ---- THE SPOKEN PERMISSION GATE (permission_mode "ask", the default).
 # When the agent wants a gated tool, the SDK routes the decision here:
@@ -211,6 +220,9 @@ def _full_detail(tool, tool_input, ctx):
 
 
 def make_permission_gate(mouth):
+    if _brain_provider() == "copilot":
+        return make_copilot_permission_gate(mouth)
+
     from claude_agent_sdk import (PermissionResultAllow,
                                   PermissionResultDeny)
 
@@ -295,6 +307,106 @@ def make_permission_gate(mouth):
     return gate
 
 
+def make_copilot_permission_gate(mouth):
+    from types import SimpleNamespace
+
+    from copilot.session import (PermissionDecisionApproveOnce,
+                                 PermissionDecisionUserNotAvailable)
+    from copilot._generated.rpc import PermissionDecisionReject
+
+    async def gate(request, invocation):
+        if getattr(request, "managed_approval_required", False):
+            return PermissionDecisionUserNotAvailable()
+        if _AUTOAPPROVE["on"]:
+            return PermissionDecisionApproveOnce()
+
+        kind = getattr(request, "kind", "")
+        if kind == "shell":
+            tool = "Bash"
+            tool_input = {"command": request.full_command_text}
+        elif kind == "write":
+            tool = "Write"
+            tool_input = {
+                "file_path": (getattr(request, "resolved_path", None)
+                              or request.file_name),
+            }
+        elif kind == "read":
+            tool = "Read"
+            tool_input = {
+                "file_path": (getattr(request, "resolved_path", None)
+                              or request.path),
+            }
+        elif kind == "url":
+            tool = "WebFetch"
+            tool_input = {"url": request.url}
+        else:
+            tool = str(kind or "Copilot action")
+            tool_input = {}
+        ctx = SimpleNamespace(
+            display_name=tool,
+            description=getattr(request, "intention", ""),
+        )
+        what = _human_what(tool, tool_input, ctx)
+        detail = _full_detail(tool, tool_input, ctx)
+        loop = asyncio.get_running_loop()
+        signals.static_stop()
+        log(f"[perm]   asking: {what}")
+        log(f"[perm]   detail: {detail}")
+        if tool == "Bash":
+            log(f"[perm]   full command: "
+                f"{str(tool_input.get('command', ''))[:2000]}")
+        ask = f"Permission check. I want to {what}. Yes, no, or details?"
+        if not _PERM["hinted"]:
+            _PERM["hinted"] = True
+            ask += (" And any time you're done with these checks, say "
+                    "stop asking for permission.")
+        mouth.say(ask)
+        answer = None
+        try:
+            deadline = loop.time() + PERM_TIMEOUT_S
+            while answer is None:
+                fut = loop.create_future()
+                _PERM["fut"] = fut
+                _PERM["asked_at"] = time.monotonic()
+                while True:
+                    try:
+                        got = await asyncio.wait_for(
+                            asyncio.shield(fut), 1.0)
+                        break
+                    except asyncio.TimeoutError:
+                        if loop.time() >= deadline:
+                            fut.cancel()
+                            mouth.say("No answer, so I didn't do it.")
+                            log("[perm]   timed out, denied")
+                            return PermissionDecisionUserNotAvailable()
+                        if not mouth.speaking:
+                            signals.set_state("listening")
+                if (got != _INTERRUPT_ANSWER
+                        and _norm_speech(got) in _DETAILS):
+                    log("[perm]   details requested")
+                    mouth.say(f"The details: I want to {detail}. "
+                              "Yes or no?")
+                    deadline = loop.time() + PERM_TIMEOUT_S
+                    continue
+                answer = got
+        finally:
+            _PERM["fut"] = None
+        if answer == _INTERRUPT_ANSWER:
+            log("[perm]   turn interrupted, denied silently")
+            return PermissionDecisionUserNotAvailable()
+        approved = _norm_speech(answer) in _YES
+        signals.set_state("thinking")
+        signals.static_start()
+        if approved:
+            log("[perm]   approved by voice")
+            return PermissionDecisionApproveOnce(approved_interactively=True)
+        log(f"[perm]   denied: {answer!r}")
+        return PermissionDecisionReject(
+            feedback=f'Denied by voice. The user said: "{answer[:500]}"')
+
+    return gate
+
+
 # ---- THE VOICE CONSOLE: session verbs, spoken. Exact phrases only,
 # spoken alone, so ordinary sentences can never trigger them. (Grown
 # from a community member's own build shared in the Discord.)
@@ -376,6 +488,11 @@ def _spoken_usage(sess, ctx_usage):
     """A short CFO brief of the session, written for the ear: plain
     numerals only (the TTS reads "40" fine; symbols come out garbled)."""
     turns = sess["turns"]
+    if _brain_provider() == "copilot":
+        return (f"{turns} turns this session. "
+                f"{_fmt_tokens(sess['out_tokens'])} generated out. "
+                "Copilot usage and billing details are in your GitHub "
+                "account.")
     parts = [f"{turns} turn{'s' if turns != 1 else ''} this session",
              _fmt_tokens(sess["out_tokens"]) + " spoken out"]
     cents = round(sess["cost"] * 100)
@@ -579,7 +696,8 @@ def _typed_reader(q: "queue.Queue[str]"):
                 sys.stdout.flush()
 
 
-async def speak_reply(brain: WarmBrain, mouth: Mouth, text: str):
+async def speak_reply(brain: ClaudeBrain | CopilotBrain,
+                      mouth: Mouth, text: str):
     """First sentence ships alone (fast start); the rest go in
     2-sentence breaths — fuller chunks get livelier prosody (single
     short sentences come out flat)."""
@@ -639,6 +757,7 @@ async def speak_reply(brain: WarmBrain, mouth: Mouth, text: str):
 
 
 async def amain():
+    provider = _brain_provider()
     open_mic = "--open-mic" in sys.argv
     barge_in = "--barge-in" in sys.argv
     model = None
@@ -656,7 +775,10 @@ async def amain():
     resume_id = None
     if CFG.get("resume_last_session"):
         try:
-            from backtalk.brain import SESSION_FILE
+            if provider == "copilot":
+                from backtalk.copilot_brain import SESSION_FILE
+            else:
+                from backtalk.brain import SESSION_FILE
             with open(SESSION_FILE) as f:
                 resume_id = f.read().strip() or None
         except OSError:
@@ -664,9 +786,10 @@ async def amain():
 
     mouth = Mouth()
     ears = Ears()
-    brain = WarmBrain(model=model,
-                      can_use_tool=make_permission_gate(mouth),
-                      resume_id=resume_id)
+    brain_type = CopilotBrain if provider == "copilot" else ClaudeBrain
+    brain = brain_type(model=model,
+                       can_use_tool=make_permission_gate(mouth),
+                       resume_id=resume_id)
 
     mode = ("hands-free listening (the talk key still works)"
             if _MIC["mode"] == "open"
@@ -680,8 +803,8 @@ async def amain():
     # Warm the engines while the greeting plays: the STT model load and
     # the brain's prompt-cache toll both hide behind the spoken line.
     loop.run_in_executor(None, warm_ears)
-    # THE BRAIN CONNECT, guarded. This is the one startup step that
-    # needs a signed-in Claude Code, internet, and available usage.
+    # THE BRAIN CONNECT, guarded. This needs the configured provider's
+    # authentication and available usage.
     # When it fails or hangs, the mouth still works, so SAY SO instead
     # of dying silently with the face stuck on idle (a real field
     # case: the greeting played, then nothing, and on Windows the
@@ -699,10 +822,12 @@ async def amain():
         kind = ("timed out" if isinstance(e, asyncio.TimeoutError)
                 else f"failed: {e!r}"[:220])
         log(f"[backtalk] BRAIN CONNECT {kind}")
+        provider_name = ("GitHub Copilot" if provider == "copilot"
+                         else "Claude Code")
         mouth.say("Bad news. The voice and the face are fine, but I "
-                  "couldn't reach my brain, the Claude Code session. "
+                  f"couldn't reach my {provider_name} brain. "
                   "Check this window for the error. The usual causes: "
-                  "Claude Code isn't signed in, the internet is down, "
+                  "the account isn't signed in, the internet is down, "
                   "or the plan is out of usage.")
         mouth.wait_done(timeout=30)
         raise SystemExit(1)

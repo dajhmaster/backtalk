@@ -35,6 +35,9 @@ REPO = Path(__file__).resolve().parent.parent
 CONFIG_PATH = Path(os.environ.get("BACKTALK_CONFIG") or (REPO / "backtalk.json"))
 
 DEFAULTS = {
+    # "claude" uses the Claude Agent SDK. "copilot" uses the official
+    # Copilot SDK and the signed-in GitHub Copilot account.
+    "brain_provider": "claude",
     # The folder whose CLAUDE.md defines WHO your agent is. The voice
     # session runs there, so it's the same assistant as your terminal
     # sessions — same name, same personality, same memory.

@@ -2,11 +2,13 @@
 
 > **Never used Claude Code?** Start at [jaredrhod.com](https://jaredrhod.com): pick your situation and it routes you to the right path.
 
-**Runs on:** Claude Code only; the voice is built on Claude's agent SDK. The $20 Pro plan is enough.
+**Runs on:** Claude Code by default, or GitHub Copilot through the official Copilot SDK.
 
-Talk to your Claude Code agent out loud. Hold a key, say the thing, and it answers through your speakers in a real voice about a second later, with all its tools, your project context, and its own personality. Your AI finally has something to say back.
+Talk to your coding agent out loud. Hold a key, say the thing, and it answers through your speakers in a real voice about a second later, with its tools, your project context, and its own personality.
 
-The hearing and the voice run local: free, offline models on your machine, no voice API keys, no per-word costs. The brain is the Claude Code you already have. On a Claude subscription, talking works like any other session and uses your plan's usage, with nothing extra to buy. This is the same voice loop I run every day, the one you see answering in about a second on my videos, shipped as working code so your agent's job is pointing it at your setup, not building it from scratch.
+Speech recognition and the built-in voice run locally. Claude is the default brain; the Copilot option uses the signed-in Copilot account and its available usage allowance.
+
+To use GitHub Copilot instead of Claude Code, install and sign in to [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli), then set `"brain_provider": "copilot"` and `"model": "auto"` in `backtalk.json`. The SDK reads the CLI's stored sign-in. Copilot Free has limited usage, so availability and remaining credits depend on your account. The Copilot adapter streams replies and uses the same voice permission checks; manual context compaction and detailed token/cost reporting are Claude-only.
 
 ## What it does
 
@@ -28,7 +30,7 @@ cd backtalk
 ./install.sh
 ```
 
-The installer sets up a Python environment, the two local AI models (speech-to-text and the voice), and the one system library they need. First run downloads the models (about 1 GB total); everything after is instant. Prerequisites: [Claude Code](https://claude.com/claude-code) with a Claude subscription, and `uv` (the installer offers to install it).
+The installer sets up a Python environment, the two local AI models (speech-to-text and the voice), and the one system library they need. First run downloads the models (about 1 GB total); everything after is instant. Prerequisites: `uv` and either Claude Code or an authenticated Copilot CLI account.
 
 **The easy way to configure it:** open this folder in Claude Code and say *"read backtalk.md and set me up."* The wizard picks your agent folder, your key, and your voice with you, then test-fires the whole loop.
 
@@ -44,7 +46,7 @@ Hold the key. Talk. Let go.
 
 ## Windows
 
-Windows is the newest lane, and the setup runs through the wizard instead of the shell scripts (`install.sh` and `run.sh` are Mac and Linux). Open this folder in Claude Code and say *"read backtalk.md and set me up"*: the wizard installs uv, espeak-ng, the environment, and the models natively, then launches with `uv run python -m backtalk.main`. The ElevenLabs key lives in the `ELEVENLABS_API_KEY` environment variable on Windows for now (Credential Manager support is planned). Hit something rough? The Windows notes in `TROUBLESHOOTING.md` carry the known quirks, and issues are welcome.
+Windows is the newest lane, and setup runs through the wizard instead of the shell scripts (`install.sh` and `run.sh` are Mac and Linux). The voice launches with `uv run python -m backtalk.main`. The ElevenLabs key lives in the `ELEVENLABS_API_KEY` environment variable on Windows for now (Credential Manager support is planned). Hit something rough? The Windows notes in `TROUBLESHOOTING.md` carry the known quirks, and issues are welcome.
 
 ## The voice
 
