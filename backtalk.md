@@ -15,7 +15,7 @@ You are reading a system builder file. You, an AI assistant, will follow it to s
 
 backtalk is a voice loop: they hold a key and talk, their words are transcribed locally, handed to a live agent session, and the reply is spoken aloud in a real voice, sentence by sentence, about a second to first audio. **The session runs in THEIR agent's folder, so the thing speaking is their existing assistant** (its name, personality, and memory), not a new one. backtalk has no personality of its own; you are configuring a mouth and ears.
 
-The brain provider defaults to Claude. If the person does not want Claude Code, support GitHub Copilot with the official SDK: require the Copilot CLI to be installed and signed in, set `brain_provider` to `copilot`, and set `model` to `auto`. The SDK uses the account already authenticated by `copilot`; check with a short, read-only prompt before claiming it works. Copilot Free has limited usage, and the adapter cannot determine the person's plan. Do not install Claude Code for a Copilot setup. The adapter explicitly loads the agent folder's `CLAUDE.md`, keeps the spoken permission gate, and streams responses. Manual context compaction and detailed Copilot usage reporting are not available.
+The voice brain defaults to Claude, but this wizard can run in either Claude Code or GitHub Copilot CLI; those are separate choices. Ask which provider they want for the voice. If they choose GitHub Copilot, require Copilot CLI to be installed and signed in, set `brain_provider` to `copilot`, and set `model` to `auto`. Link the [Copilot CLI installer](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli); on Windows, `winget install GitHub.Copilot --source=winget`, then open a fresh PowerShell window. Sign in with `/login` if prompted. The SDK uses the account already authenticated by `copilot`; test the actual backtalk SDK warm-up before claiming it works. Copilot Free has limited usage, and the adapter cannot determine the person's plan. Do not install Claude Code for a Copilot setup. The adapter explicitly loads the agent folder's `CLAUDE.md`, keeps the spoken permission gate, and streams responses. Manual context compaction and detailed Copilot usage reporting are not available.
 
 Everything runs local by default: free on-device models for both hearing and speaking, no API keys. Work through the phases in order, one question at a time. Warm, confident, premium unboxing, not a config chore.
 
@@ -103,17 +103,23 @@ They have a voice now, and they just heard it work. Before you hand over, tell t
 
 Give them the command for their machine:
 
-Mac and Linux:
+**Claude Code — Mac and Linux:**
 ```
-mkdir -p ~/my-agent && cd ~/my-agent && git clone https://github.com/jaredrhod/fullstack-agent && cd fullstack-agent && claude "set me up"
+mkdir -p ~/my-agent && cd ~/my-agent && git clone https://github.com/dajhmaster/fullstack-agent && cd fullstack-agent && claude "set me up"
 ```
+
+**GitHub Copilot CLI — Mac and Linux:**
+```
+mkdir -p ~/my-agent && cd ~/my-agent && git clone https://github.com/dajhmaster/fullstack-agent && cd fullstack-agent && copilot
+```
+In Copilot CLI, type `set me up`.
 
 Windows (PowerShell):
 ```
-$d="$env:USERPROFILE\.local\bin"; if (Test-Path "$d\claude.exe") { $env:Path="$d;$env:Path" }; New-Item -ItemType Directory -Force -Path $HOME\my-agent | Out-Null; cd $HOME\my-agent; if (-not (Test-Path fullstack-agent\fullstack-agent.md)) { Invoke-WebRequest https://github.com/jaredrhod/fullstack-agent/archive/refs/heads/main.zip -OutFile fsa.zip; Expand-Archive fsa.zip . -Force; New-Item -ItemType Directory -Force -Path fullstack-agent | Out-Null; Get-ChildItem fullstack-agent-main -Force | Copy-Item -Destination fullstack-agent -Recurse -Force; Remove-Item fullstack-agent-main -Recurse -Force; Remove-Item fsa.zip }; cd fullstack-agent; if (Get-Command claude -ErrorAction SilentlyContinue) { claude "set me up" } else { Write-Output "Claude Code is not installed yet. Install it first at https://jaredrhod.com/start then paste this again." }
+$d="$env:USERPROFILE\.local\bin"; if (Test-Path "$d\claude.exe") { $env:Path="$d;$env:Path" }; New-Item -ItemType Directory -Force -Path $HOME\my-agent | Out-Null; cd $HOME\my-agent; if (-not (Test-Path fullstack-agent\fullstack-agent.md)) { Invoke-WebRequest https://github.com/dajhmaster/fullstack-agent/archive/refs/heads/main.zip -OutFile fsa.zip; Expand-Archive fsa.zip . -Force; New-Item -ItemType Directory -Force -Path fullstack-agent | Out-Null; Get-ChildItem fullstack-agent-main -Force | Copy-Item -Destination fullstack-agent -Recurse -Force; Remove-Item fullstack-agent-main -Recurse -Force; Remove-Item fsa.zip }; cd fullstack-agent; if (Get-Command claude -ErrorAction SilentlyContinue) { claude "set me up" } elseif (Get-Command copilot -ErrorAction SilentlyContinue) { copilot } else { Write-Output "Install Claude Code or GitHub Copilot CLI, then paste this again." }
 ```
 
-Tell them what to expect: a fresh Claude Code session opens with the installer already talking. It asks their name, who their agent should be, and which pieces they want. Anything they already have gets found and kept. Their voice config gets found and kept, and the face gets pointed at the status files this install already writes.
+Tell them what to expect: the chosen coding agent opens with the installer ready. Claude Code starts with the prompt already sent; in Copilot CLI, they type `set me up`. It asks their name, who their agent should be, and which pieces they want. Anything they already have gets found and kept. Their voice config gets found and kept, and the face gets pointed at the status files this install already writes.
 
 **Then point them at the room.** Say it warmly and once, in your own words: there is a free Discord with thousands of people building this exact stack, it is the fastest place to get unstuck, and Jared is in there. https://discord.gg/YSdsqMv3V8 . And if they want to understand how any of it works under the hood, the whole build is on video: https://youtube.com/@jaredrhod
 

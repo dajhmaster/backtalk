@@ -1,6 +1,6 @@
 # backtalk
 
-> **Never used Claude Code?** Start at [jaredrhod.com](https://jaredrhod.com): pick your situation and it routes you to the right path.
+> **New to Claude Code?** Start at [jaredrhod.com](https://jaredrhod.com). **Using [GitHub Copilot](https://github.com/features/copilot)?** Install [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli) to run this setup and authenticate the Copilot voice backend.
 
 **Runs on:** Claude Code by default, or GitHub Copilot through the official Copilot SDK.
 
@@ -12,7 +12,7 @@ To use GitHub Copilot instead of Claude Code, install and sign in to [GitHub Cop
 
 ## What it does
 
-- **Hold a key, talk, release.** Your words are transcribed locally and handed to a live Claude Code session. The reply is spoken sentence by sentence as it's generated, with first audio in about 1 to 2 seconds on warm turns. Prefer no button at all? **Hands-free listening** is one spoken sentence away ("go hands free"), and the key keeps working there as your interrupt.
+- **Hold a key, talk, release.** Your words are transcribed locally and handed to the configured Claude or Copilot session. The reply is spoken sentence by sentence as it's generated, with first audio in about 1 to 2 seconds on warm turns. Prefer no button at all? **Hands-free listening** is one spoken sentence away ("go hands free"), and the key keeps working there as your interrupt.
 - **It's YOUR agent talking.** The session runs in the folder whose CLAUDE.md defines your assistant: same name, same personality, same memory as your terminal sessions. backtalk has no personality of its own; it's a mouth and ears for whoever you already have. (No agent yet? The [ai-memory-vault](https://github.com/jaredrhod/ai-memory-vault) build ships with mine, Jarvis, ready to use.)
 - **Interrupt it.** Press the key while it's talking and it shuts up and listens. No headphones needed, because the mic only opens while you hold the key, so it never hears the speakers.
 - **Type instead whenever you want.** Typing in the terminal is the same conversation, and the reply is still spoken.
@@ -25,16 +25,18 @@ To use GitHub Copilot instead of Claude Code, install and sign in to [GitHub Cop
 ## Install
 
 ```
-git clone https://github.com/jaredrhod/backtalk
+git clone https://github.com/dajhmaster/backtalk
 cd backtalk
 ./install.sh
 ```
 
-The installer sets up a Python environment, the two local AI models (speech-to-text and the voice), and the one system library they need. First run downloads the models (about 1 GB total); everything after is instant. Prerequisites: `uv` and either Claude Code or an authenticated Copilot CLI account.
+The installer sets up a Python environment, the two local AI models (speech-to-text and the voice), and the one system library they need. First run downloads the models (about 1 GB total); everything after is instant. Prerequisites: `uv` and either Claude Code or GitHub Copilot CLI with account access. Copilot Free has limited usage.
 
-**The easy way to configure it:** open this folder in Claude Code and say *"read backtalk.md and set me up."* The wizard picks your agent folder, your key, and your voice with you, then test-fires the whole loop.
+**Set it up with Claude Code:** open this folder in Claude Code and say *"read backtalk.md and set me up."* The wizard picks your agent folder, your key, and your voice with you, then test-fires the whole loop.
 
-**Already in a Claude Code session with your agent?** One sentence does the whole install: *"clone https://github.com/jaredrhod/backtalk.git, then read backtalk/backtalk.md and set me up."* Your agent runs the installer and the wizard for you.
+**Set it up with GitHub Copilot CLI:** install it from [GitHub's Copilot CLI guide](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli), start `copilot` in this folder, sign in with `/login` if prompted, then ask it to *"read backtalk.md and set me up."* The wizard can run in Copilot CLI; the voice backend is a separate choice.
+
+**Already in a Claude Code or Copilot CLI session with your agent?** One sentence does the whole install: *"clone https://github.com/dajhmaster/backtalk.git, then read backtalk/backtalk.md and set me up."* Your agent runs the installer and the wizard for you.
 
 **The manual way:** copy `backtalk.json.example` to `backtalk.json` (your copy is untracked, so updates never touch it), then edit it. Point `agent_dir` at the folder whose CLAUDE.md is your agent, set `name` to your agent's name, pick a `ptt_key`. Then:
 
@@ -46,7 +48,7 @@ Hold the key. Talk. Let go.
 
 ## Windows
 
-Windows is the newest lane, and setup runs through the wizard instead of the shell scripts (`install.sh` and `run.sh` are Mac and Linux). The voice launches with `uv run python -m backtalk.main`. The ElevenLabs key lives in the `ELEVENLABS_API_KEY` environment variable on Windows for now (Credential Manager support is planned). Hit something rough? The Windows notes in `TROUBLESHOOTING.md` carry the known quirks, and issues are welcome.
+Windows is the newest lane, and setup runs through the wizard instead of the shell scripts (`install.sh` and `run.sh` are Mac and Linux). Open this folder in Claude Code or Copilot CLI and ask it to read `backtalk.md` and set you up. Install Copilot CLI with `winget install GitHub.Copilot --source=winget`; open a fresh PowerShell window afterward, then use `/login` in Copilot CLI if prompted. The voice launches with `uv run python -m backtalk.main`. The ElevenLabs key lives in the `ELEVENLABS_API_KEY` environment variable on Windows for now (Credential Manager support is planned). Hit something rough? The Windows notes in `TROUBLESHOOTING.md` carry the known quirks, and issues are welcome.
 
 ## The voice
 
@@ -67,7 +69,7 @@ Mind ([ai-memory-vault](https://github.com/jaredrhod/ai-memory-vault)), mouth (t
 
 ## The fine print that matters
 
-- **Usage:** every spoken turn is a real Claude Code turn, so a long voice session uses your plan the same way a long typing session does. The config pins the fast model tier on purpose; it's most of the speed, and it's the lighter draw.
+- **Usage:** every spoken turn uses the selected provider. Claude turns use your Claude plan; Copilot turns use your account's Copilot allowance, which is limited on Copilot Free. The config pins the fast model tier on purpose when using Claude; Copilot uses `"auto"`.
 - **Permissions: ask first, auto-approve by choice.** The default is `"ask"`: gated actions get a spoken permission check, answered by voice or by typing, and silence for about 75 seconds means no. `"bypassPermissions"` is auto-approve: the agent acts without asking, exactly like a terminal session with approvals off. Never hand-edit the file to switch; tell your agent to change it (takes effect the next time the voice line starts), or say "stop asking for permission" / "start asking again" in a voice session for a flip that happens immediately and saves itself.
 - **Two microphone modes, and the words mean what you think.** Push to talk (the default): the mic is closed except while you hold the key, so nothing records in the background, ever. **Hands-free listening**: always listening with voice detection; the setup asks which you want, "go hands free" / "push to talk mode" switches live and saves itself, and the talk key still works in hands-free as your interrupt. Tradeoffs in `TROUBLESHOOTING.md`. (Hands-free is about the MICROPHONE. Approvals are a separate setting called auto-approve; the two never share a name.)
 - **The talk key needs a global key listener.** For the key to work when the voice line isn't your focused window, the process has to watch keyboard events system-wide. `backtalk/ptt.py` compares each event against the one key you configured and discards the rest. It stores nothing and writes nothing anywhere. Ninety-one lines, so you can read all of it in a minute. macOS asks for Input Monitoring permission before it will run, which is the OS telling you what the program can see.
@@ -76,7 +78,7 @@ Mind ([ai-memory-vault](https://github.com/jaredrhod/ai-memory-vault)), mouth (t
 
 ## Credits
 
-Speech recognition by [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (MIT) running [OpenAI Whisper](https://github.com/openai/whisper) models (MIT). Voice by [Kokoro](https://github.com/hexgrad/kokoro) (Apache 2.0) with [espeak-ng](https://github.com/espeak-ng/espeak-ng) (GPL-3.0, used as a system tool) for phonemization. Built on the [Claude Agent SDK](https://docs.claude.com/en/api/agent-sdk/overview).
+Speech recognition by [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (MIT) running [OpenAI Whisper](https://github.com/openai/whisper) models (MIT). Voice by [Kokoro](https://github.com/hexgrad/kokoro) (Apache 2.0) with [espeak-ng](https://github.com/espeak-ng/espeak-ng) (GPL-3.0, used as a system tool) for phonemization. The brain adapters use the [Claude Agent SDK](https://docs.claude.com/en/api/agent-sdk/overview) or [GitHub Copilot SDK](https://github.com/microsoft/copilot-sdk).
 
 ## Updating
 
@@ -86,7 +88,7 @@ backtalk improves continuously (several of its best fixes came from this communi
 
 A voice is better with a face and a memory. The visualizer performs the conversation on screen while you talk, and the memory vault is what your agent actually speaks from, so it remembers you between sessions.
 
-- **The whole stack, one command.** [fullstack-agent](https://github.com/jaredrhod/fullstack-agent) installs the memory, the voice, the face, and the hands, and wires them together for you. Pick only the pieces you want: https://jaredrhod.com
+- **The whole stack, one command.** [fullstack-agent](https://github.com/dajhmaster/fullstack-agent) installs the memory, the voice, the face, and the hands, and wires them together for you. Pick only the pieces you want: https://jaredrhod.com
 - **The videos.** Free series on all of it: https://youtube.com/@jaredrhod
 - **The Discord.** Thousands of builders, and the fastest place to get unstuck: https://discord.gg/YSdsqMv3V8
 - **Everything else,** free and open: https://jaredrhod.com
